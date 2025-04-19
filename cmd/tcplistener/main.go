@@ -7,13 +7,6 @@ import (
 	"net"
 )
 
-//import (
-//	"fmt"
-//	"httpfromtcp/internal/request"
-//	"log"
-//	"net"
-//)
-
 const newline = 10
 
 func main() {
