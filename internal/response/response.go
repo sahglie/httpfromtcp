@@ -15,9 +15,14 @@ const (
 )
 
 type Writer struct {
+	writer io.Writer
 }
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{writer: w}
+}
+
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	reason := ""
 
 	switch statusCode {
@@ -44,7 +49,7 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 	return h
 }
 
-func WriteHeaders(w io.Writer, headers headers.Headers) error {
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	for k, v := range headers {
 		h := fmt.Sprintf("%s: %s\r\n", k, v)
 		_, err := w.Write([]byte(h))
@@ -55,4 +60,8 @@ func WriteHeaders(w io.Writer, headers headers.Headers) error {
 
 	_, err := w.Write([]byte("\r\n"))
 	return err
+}
+
+func (w *Writer) Write(buf []byte) (int, error) {
+	return w.writer.Write(buf)
 }
