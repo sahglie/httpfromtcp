@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
+	"httpfromtcp/internal/headers"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
@@ -48,12 +51,14 @@ func myHandler(w *response.Writer, req *request.Request) {
 	html = strings.Trim(html, "\n")
 
 	w.WriteStatusLine(status)
-	headers := response.GetDefaultHeaders(len(html))
+	h := response.GetDefaultHeaders(len(html))
 
 	if strings.HasPrefix(target, "/httpbin") {
-		headers.Delete("Content-Length")
-		headers.Set("Transfer-Encoding", "chunked")
-		w.WriteHeaders(headers)
+		h.Remove("Content-Length")
+		h.Set("Transfer-Encoding", "chunked")
+		h.Set("Trailer", "X-Content-Sha256")
+		h.Set("Trailer", "X-Content-Length")
+		w.WriteHeaders(h)
 
 		path := strings.TrimPrefix(target, "/httpbin/")
 		url := fmt.Sprintf("https://httpbin.org/%s", path)
@@ -63,6 +68,7 @@ func myHandler(w *response.Writer, req *request.Request) {
 			log.Fatal(err)
 		}
 
+		var bodyBuf bytes.Buffer
 		buf := make([]byte, 1024)
 
 		for {
@@ -70,15 +76,28 @@ func myHandler(w *response.Writer, req *request.Request) {
 			if n == 0 {
 				break
 			}
-			w.WriteChunkedBody(buf[0:n])
+			w.WriteChunkedBody(buf[:n])
+			bodyBuf.Write(buf[:n])
 		}
 
 		w.WriteChunkedBodyDone()
+
+		fullBody := bodyBuf.Bytes()
+		trailers := headers.NewHeaders()
+		sha256 := fmt.Sprintf("%x", sha256.Sum256(fullBody))
+		trailers.Set("X-Content-SHA256", sha256)
+		trailers.Set("X-Content-Length", fmt.Sprintf("%d", len(fullBody)))
+		err = w.WriteTrailers(trailers)
+		if err != nil {
+			fmt.Println("Error writing trailers:", err)
+		}
+		fmt.Println("Wrote trailers")
+
 		return
 	}
 
-	headers.Replace("Content-Type", "text/html")
-	w.WriteHeaders(headers)
+	h.Override("Content-Type", "text/html")
+	w.WriteHeaders(h)
 	w.WriteBody([]byte(html))
 }
 

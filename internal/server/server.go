@@ -2,39 +2,40 @@ package server
 
 import (
 	"fmt"
-	"httpfromtcp/internal/request"
-	"httpfromtcp/internal/response"
 	"log"
 	"net"
 	"sync/atomic"
+
+	"httpfromtcp/internal/request"
+	"httpfromtcp/internal/response"
 )
 
+type Handler func(w *response.Writer, req *request.Request)
+
+// Server is an HTTP 1.1 server
 type Server struct {
-	closed   atomic.Bool
-	listener net.Listener
 	handler  Handler
+	listener net.Listener
+	closed   atomic.Bool
 }
 
 func Serve(port int, handler Handler) (*Server, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
-
 	s := &Server{
-		listener: listener,
 		handler:  handler,
+		listener: listener,
 	}
-
 	go s.listen()
-
 	return s, nil
 }
 
 func (s *Server) Close() error {
 	s.closed.Store(true)
 	if s.listener != nil {
-		s.listener.Close()
+		return s.listener.Close()
 	}
 	return nil
 }
@@ -49,27 +50,21 @@ func (s *Server) listen() {
 			log.Printf("Error accepting connection: %v", err)
 			continue
 		}
-
 		go s.handle(conn)
 	}
 }
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-
 	w := response.NewWriter(conn)
-
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
 		w.WriteStatusLine(response.BadRequest)
-		head := response.GetDefaultHeaders(len(err.Error()))
-		w.WriteHeaders(head)
-		w.WriteBody([]byte(err.Error()))
+		body := []byte(fmt.Sprintf("Error parsing request: %v", err))
+		w.WriteHeaders(response.GetDefaultHeaders(len(body)))
+		w.WriteBody(body)
 		return
 	}
-
 	s.handler(w, req)
 	return
 }
-
-type Handler func(w *response.Writer, req *request.Request)

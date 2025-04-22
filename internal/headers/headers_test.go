@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"strings"
 	"testing"
 )
 
@@ -97,11 +96,12 @@ func TestHeaders_Parse_RequiresValidTokenCharacterSet(t *testing.T) {
 	assert.False(t, done)
 }
 
-func TestShit(t *testing.T) {
-	target := "/httpbin/stream/100"
-	parts := strings.Split(target, "/")
-	fmt.Printf("%#v\n", parts)
-
-	path := strings.TrimPrefix(target, "/httpbin/")
-	fmt.Printf("%#v\n", path)
-}
+//func TestShit(t *testing.T) {
+//
+//	a := "3f324f9914742e62cf082861ba03b207282dba781c3349bee9d7c1b5ef8e0bfe"
+//	b := "3f324f9914742e62cf082861ba03b207282dba781c3349bee9d7c1b5ef8e0bfe"
+//
+//	assert.Equal(t, a, b)
+//	parts := strings.Split("one, two, three", ", ")
+//	fmt.Printf("%#v\n", parts)
+//}
