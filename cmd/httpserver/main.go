@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"httpfromtcp/internal/request"
 	"httpfromtcp/internal/response"
 	"httpfromtcp/internal/server"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -33,7 +35,8 @@ func myHandler(w *response.Writer, req *request.Request) {
 	html := handle200()
 	var status response.StatusCode = response.OK
 
-	switch req.RequestLine.RequestTarget {
+	target := req.RequestLine.RequestTarget
+	switch target {
 	case "/yourproblem":
 		status = response.BadRequest
 		html = handle400()
@@ -46,10 +49,37 @@ func myHandler(w *response.Writer, req *request.Request) {
 
 	w.WriteStatusLine(status)
 	headers := response.GetDefaultHeaders(len(html))
+
+	if strings.HasPrefix(target, "/httpbin") {
+		headers.Delete("Content-Length")
+		headers.Set("Transfer-Encoding", "chunked")
+		w.WriteHeaders(headers)
+
+		path := strings.TrimPrefix(target, "/httpbin/")
+		url := fmt.Sprintf("https://httpbin.org/%s", path)
+
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		buf := make([]byte, 1024)
+
+		for {
+			n, _ := resp.Body.Read(buf)
+			if n == 0 {
+				break
+			}
+			w.WriteChunkedBody(buf[0:n])
+		}
+
+		w.WriteChunkedBodyDone()
+		return
+	}
+
 	headers.Replace("Content-Type", "text/html")
 	w.WriteHeaders(headers)
-
-	w.Write([]byte(html))
+	w.WriteBody([]byte(html))
 }
 
 func handle400() string {

@@ -60,6 +60,10 @@ func (h Headers) Replace(key, value string) {
 	h[key] = value
 }
 
+func (h Headers) Delete(key string) {
+	delete(h, key)
+}
+
 func (h Headers) Get(key string) string {
 	return h[strings.ToLower(key)]
 }

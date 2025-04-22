@@ -1,6 +1,7 @@
 package response
 
 import (
+	"bytes"
 	"fmt"
 	"httpfromtcp/internal/headers"
 	"io"
@@ -35,7 +36,7 @@ func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
 	}
 
 	statusLine := fmt.Sprintf("HTTP/1.1 %d %s \r\n", statusCode, reason)
-	_, err := w.Write([]byte(statusLine))
+	_, err := w.WriteBody([]byte(statusLine))
 
 	return err
 }
@@ -52,16 +53,31 @@ func GetDefaultHeaders(contentLen int) headers.Headers {
 func (w *Writer) WriteHeaders(headers headers.Headers) error {
 	for k, v := range headers {
 		h := fmt.Sprintf("%s: %s\r\n", k, v)
-		_, err := w.Write([]byte(h))
+		_, err := w.WriteBody([]byte(h))
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err := w.Write([]byte("\r\n"))
+	_, err := w.WriteBody([]byte("\r\n"))
 	return err
 }
 
-func (w *Writer) Write(buf []byte) (int, error) {
+func (w *Writer) WriteBody(buf []byte) (int, error) {
 	return w.writer.Write(buf)
+}
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	var buf bytes.Buffer
+	hexLen := fmt.Sprintf("%X\r\n", len(p))
+
+	buf.Write([]byte(hexLen))
+	buf.Write(p)
+	buf.Write([]byte("\r\n"))
+
+	return w.WriteBody(buf.Bytes())
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	return w.WriteBody([]byte("0\r\n\r\n"))
 }
