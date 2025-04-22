@@ -39,7 +39,7 @@ func handler(w *response.Writer, req *request.Request) {
 		return
 	}
 	if req.RequestLine.RequestTarget == "/yourproblem" {
-		handler200(w, req)
+		handler400(w, req)
 		return
 	}
 	if req.RequestLine.RequestTarget == "/myproblem" {
